@@ -28,7 +28,7 @@ class CategoryController extends Controller
         $excludeFormId = $request->query('exclude_form_id');
 
         // Get category IDs that are already assigned to forms
-        $query = \DB::table('category_form')
+        $query = \DB::table('form_category')
             ->select('category_id')
             ->distinct();
 

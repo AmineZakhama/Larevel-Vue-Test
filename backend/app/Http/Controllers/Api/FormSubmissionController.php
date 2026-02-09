@@ -27,10 +27,19 @@ class FormSubmissionController extends Controller
     public function store(StoreFormSubmissionRequest $request, $formId)
     {
         $form = Form::with('categories.customFields')->findOrFail($formId);
+
+        // Get field_values from request
+        $fieldValues = $request->input('field_values');
+
+
+
         $submission = FormSubmission::create([
             'form_id' => $formId,
-            'field_values' => $request->validated()['field_values']
+            'field_values' => $fieldValues
         ]);
+
+
+
         return new FormSubmissionResource($submission->load('form'));
     }
 
@@ -59,5 +68,20 @@ class FormSubmissionController extends Controller
         $submission = FormSubmission::findOrFail($id);
         $submission->delete();
         return response()->json(['message' => 'Submission deleted successfully']);
+    }
+
+    /**
+     * Reorder submissions
+     */
+    public function reorder(Request $request)
+    {
+        $submissions = $request->input('submissions'); // [{id: 1, order: 0}, {id: 2, order: 1}]
+
+        foreach ($submissions as $item) {
+            FormSubmission::where('id', $item['id'])
+                ->update(['display_order' => $item['order']]);
+        }
+
+        return response()->json(['message' => 'Submissions reordered successfully']);
     }
 }

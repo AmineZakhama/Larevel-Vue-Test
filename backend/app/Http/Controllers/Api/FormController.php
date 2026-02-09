@@ -16,7 +16,7 @@ class FormController extends Controller
      */
     public function index()
     {
-        $forms = Form::with('categories')->get();
+        $forms = Form::with('categories.customFields')->get();
         return FormResource::collection($forms);
     }
 
