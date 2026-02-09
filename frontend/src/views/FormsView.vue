@@ -1,10 +1,16 @@
+```
 <template>
   <div class="forms-page">
     <div class="page-header">
       <h2>Forms</h2>
-      <button @click="showCreateModal = true" class="btn btn-primary">
-        + Create Form
-      </button>
+      <div class="header-actions">
+        <router-link to="/submissions" class="btn btn-secondary">
+          View All Submissions
+        </router-link>
+        <button @click="showCreateModal = true" class="btn btn-primary">
+          + Create Form
+        </button>
+      </div>
     </div>
 
     <div v-if="formsStore.loading" class="loading">
@@ -113,8 +119,13 @@
                 </label>
               </div>
               
-              <div v-if="categoriesStore.categories.length === 0" class="no-categories-message">
-                No categories available. Create some first!
+              <div v-if="availableCategories.length === 0" class="no-categories-message">
+                <template v-if="categoriesStore.categories.length === 0">
+                  No categories created yet. Create some first!
+                </template>
+                <template v-else>
+                  All categories are already used in other forms.
+                </template>
               </div>
             </div>
           </div>
@@ -237,29 +248,52 @@ const selectedFields = computed(() => {
   return fields
 })
 
+// Watch for modal opening to fetch available categories
 watch(showCreateModal, async (isOpen) => {
+  console.log('showCreateModal changed:', isOpen, 'editingForm:', editingForm.value)
   if (isOpen && !editingForm.value) {
+    console.log('Fetching available categories for new form...')
     await fetchAvailableCategories()
   }
 })
 
 watch(editingForm, async (form) => {
+  console.log('editingForm changed:', form)
   if (form) {
+    console.log('Fetching available categories for edit, excluding form:', form.id)
     await fetchAvailableCategories(form.id)
   }
 })
 
 onMounted(() => {
+  console.log('FormsView mounted')
   formsStore.fetchForms()
   categoriesStore.fetchCategories()
 })
 
 async function fetchAvailableCategories(excludeFormId = null) {
   try {
+    console.log('Calling API getAvailableCategories with:', excludeFormId)
     const response = await api.getAvailableCategories(excludeFormId)
-    availableCategories.value = response.data.data
+    console.log('Full API Response:', response)
+    console.log('Response body:', response.data)
+    
+    // Check both standard Laravel Resource (data.data) and direct array (data)
+    let data = []
+    if (response.data && Array.isArray(response.data.data)) {
+        data = response.data.data
+        console.log('Found categories in response.data.data')
+    } else if (Array.isArray(response.data)) {
+        data = response.data
+        console.log('Found categories in response.data')
+    } else {
+        console.warn('Unexpected API response format:', response.data)
+    }
+    
+    availableCategories.value = data
+    console.log('Final availableCategories set to:', availableCategories.value)
   } catch (error) {
-    console.error('Error:', error)
+    console.error('Error fetching available categories:', error)
     availableCategories.value = []
   }
 }
@@ -298,12 +332,23 @@ async function saveForm() {
     } else {
       const newForm = await formsStore.createForm(data)
       if (Object.keys(fieldValues.value).length > 0) {
+        // Ensure field_values is an object with ID keys
+        const submissionValues = {}
+        for (const [key, value] of Object.entries(fieldValues.value)) {
+          submissionValues[String(key)] = value
+        }
+        
+        console.log('📤 Sending submission with field_values:', submissionValues)
+        console.log('📤 Type check:', typeof submissionValues, Array.isArray(submissionValues))
+        console.log('📤 JSON stringified:', JSON.stringify({field_values: submissionValues}))
+        
         const submissionData = {
-          field_values: fieldValues.value
+          field_values: submissionValues
         }
         
         try {
-          await submissionsStore.createSubmission(newForm.id, submissionData)
+          const result = await submissionsStore.createSubmission(newForm.id, submissionData)
+          console.log('✅ Submission created:', result)
         } catch (error) {
           console.error('Error creating submission:', error)
           alert('Form created but submission failed: ' + error.message)
@@ -344,6 +389,12 @@ async function deleteForm(id) {
   color: #2d3748;
 }
 
+
+.header-actions {
+  display: flex;
+  gap: 1rem;
+}
+
 .btn {
   padding: 0.75rem 1.5rem;
   border: none;
@@ -352,6 +403,17 @@ async function deleteForm(id) {
   cursor: pointer;
   transition: all 0.3s ease;
   font-size: 0.875rem;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.btn-secondary {
+  background: #4a5568;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background: #2d3748;
 }
 
 .btn-primary {

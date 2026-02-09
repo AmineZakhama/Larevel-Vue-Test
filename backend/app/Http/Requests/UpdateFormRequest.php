@@ -41,7 +41,7 @@ class UpdateFormRequest extends FormRequest
             $currentFormId = $this->route('form');
 
             // Check if any categories are already assigned to OTHER forms
-            $usedCategories = \DB::table('category_form')
+            $usedCategories = \DB::table('form_category')
                 ->whereIn('category_id', $categoryIds)
                 ->where('form_id', '!=', $currentFormId)
                 ->pluck('category_id')

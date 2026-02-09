@@ -22,7 +22,7 @@ class StoreFormSubmissionRequest extends FormRequest
     public function rules(): array
     {
         return [
-        'field_values' => 'required|array'
-    ];
+            'field_values' => 'required'
+        ];
     }
 }
