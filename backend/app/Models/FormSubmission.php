@@ -12,6 +12,7 @@ class FormSubmission extends Model
     protected $fillable = [
         'form_id',
         'field_values',
+        'display_order',
     ];
 
     protected $casts = [

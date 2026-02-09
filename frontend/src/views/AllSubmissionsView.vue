@@ -2,27 +2,104 @@
   <div class="submissions-page">
     <div class="page-header">
       <h2>All Submissions</h2>
-      <button @click="refreshData" class="btn btn-secondary">
-        🔄 Refresh
-      </button>
+      <div class="header-actions">
+        <!-- Export Dropdown -->
+        <div class="export-dropdown">
+          <button
+            @click="showExportMenu = !showExportMenu"
+            class="btn btn-primary"
+          >
+            📥 Export
+          </button>
+          <div v-if="showExportMenu" class="dropdown-menu">
+            <button @click="exportSubmissions('excel')" class="dropdown-item">
+              📊 Export to Excel
+            </button>
+            <button @click="exportSubmissions('csv')" class="dropdown-item">
+              📄 Export to CSV
+            </button>
+            <button @click="exportSubmissions('pdf')" class="dropdown-item">
+              📑 Export to PDF
+            </button>
+          </div>
+        </div>
+        <button @click="refreshData" class="btn btn-secondary">
+          🔄 Refresh
+        </button>
+      </div>
     </div>
 
-    <div v-if="loading" class="loading">
-      Loading submissions...
+    <!-- Filter Panel -->
+    <div class="filter-panel">
+      <div class="filter-row">
+        <div class="filter-item">
+          <label>Filter by Form:</label>
+          <select
+            v-model="filterFormId"
+            @change="applyFilters"
+            class="filter-select"
+          >
+            <option value="">All Forms</option>
+            <option
+              v-for="form in formsStore.forms"
+              :key="form.id"
+              :value="form.id"
+            >
+              {{ form.name }}
+            </option>
+          </select>
+        </div>
+        <div class="filter-item">
+          <label>From Date:</label>
+          <input
+            v-model="filterDateFrom"
+            @change="applyFilters"
+            type="date"
+            class="filter-input"
+          />
+        </div>
+        <div class="filter-item">
+          <label>To Date:</label>
+          <input
+            v-model="filterDateTo"
+            @change="applyFilters"
+            type="date"
+            class="filter-input"
+          />
+        </div>
+        <button @click="clearFilters" class="btn btn-secondary-small">
+          Clear Filters
+        </button>
+      </div>
     </div>
 
-    <div v-if="!loading && allSubmissions.length === 0" class="empty-state">
-      <p>No submissions yet.</p>
-      <router-link to="/forms" class="btn btn-primary">Create a Form</router-link>
+    <div v-if="loading" class="loading">Loading submissions...</div>
+
+    <div
+      v-if="!loading && filteredSubmissions.length === 0"
+      class="empty-state"
+    >
+      <p>No submissions found.</p>
+      <router-link to="/forms" class="btn btn-primary"
+        >Create a Form</router-link
+      >
     </div>
 
-    <div v-if="!loading && allSubmissions.length > 0" class="table-wrapper">
+    <div
+      v-if="!loading && filteredSubmissions.length > 0"
+      class="table-wrapper"
+    >
       <div class="table-container">
         <table class="submissions-table">
           <thead>
             <tr>
+              <th class="drag-column">⋮⋮</th>
               <th class="form-name-column">Form Name</th>
-              <th v-for="field in allUniqueFields" :key="field.id" class="field-column">
+              <th
+                v-for="field in allUniqueFields"
+                :key="field.id"
+                class="field-column"
+              >
                 {{ field.name }}
                 <span class="field-type-hint">{{ field.field_type }}</span>
               </th>
@@ -30,43 +107,72 @@
               <th class="actions-column">Actions</th>
             </tr>
           </thead>
-          <tbody>
-            <tr v-for="submission in allSubmissions" :key="submission.id">
-              <td class="form-name-column">
-                <strong>{{ submission.formName }}</strong>
-              </td>
-              <td v-for="field in allUniqueFields" :key="field.id" class="field-value">
-                <span v-if="getFieldValue(submission, field.id) !== null">
-                  <span v-if="field.field_type === 'checkbox'">
-                    {{ getFieldValue(submission, field.id) ? '✓ Yes' : '✗ No' }}
+          <draggable
+            v-model="filteredSubmissions"
+            tag="tbody"
+            item-key="id"
+            @end="onDragEnd"
+            handle=".drag-handle"
+          >
+            <template #item="{ element: submission }">
+              <tr>
+                <td class="drag-column">
+                  <span class="drag-handle">⋮⋮</span>
+                </td>
+                <td class="form-name-column">
+                  <strong>{{ submission.formName }}</strong>
+                </td>
+                <td
+                  v-for="field in allUniqueFields"
+                  :key="field.id"
+                  class="field-value"
+                >
+                  <span v-if="getFieldValue(submission, field.id) !== null">
+                    <span v-if="field.field_type === 'checkbox'">
+                      {{
+                        getFieldValue(submission, field.id) ? "✓ Yes" : "✗ No"
+                      }}
+                    </span>
+                    <span v-else-if="field.field_type === 'date'">
+                      {{ formatDate(getFieldValue(submission, field.id)) }}
+                    </span>
+                    <span v-else>
+                      {{ getFieldValue(submission, field.id) }}
+                    </span>
                   </span>
-                  <span v-else-if="field.field_type === 'date'">
-                    {{ formatDate(getFieldValue(submission, field.id)) }}
-                  </span>
-                  <span v-else>
-                    {{ getFieldValue(submission, field.id) }}
-                  </span>
-                </span>
-                <span v-else class="empty-cell">-</span>
-              </td>
-              <td class="date-column">
-                {{ formatDateTime(submission.created_at) }}
-              </td>
-              <td class="actions-column">
-                <button @click="deleteSubmission(submission.id)" class="btn btn-delete-small">
-                  Delete
-                </button>
-              </td>
-            </tr>
-          </tbody>
+                  <span v-else class="empty-cell">-</span>
+                </td>
+                <td class="date-column">
+                  {{ formatDateTime(submission.created_at) }}
+                </td>
+                <td class="actions-column">
+                  <button
+                    @click="exportSinglePdf(submission.id)"
+                    class="btn btn-export-small"
+                    title="Export as PDF"
+                  >
+                    📄 PDF
+                  </button>
+                  <button
+                    @click="deleteSubmission(submission.id)"
+                    class="btn btn-delete-small"
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            </template>
+          </draggable>
         </table>
       </div>
 
       <div class="table-footer">
         <p class="summary-text">
-          <strong>{{ allSubmissions.length }}</strong> total submission(s) across 
-          <strong>{{ uniqueFormNames.length }}</strong> form(s) with 
-          <strong>{{ allUniqueFields.length }}</strong> unique field(s)
+          <strong>{{ filteredSubmissions.length }}</strong> submission(s)
+          displayed
+          <span v-if="filterFormId || filterDateFrom || filterDateTo">
+            (filtered from {{ allSubmissions.length }} total)
+          </span>
         </p>
       </div>
     </div>
@@ -74,206 +180,369 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
-import { useFormsStore } from '@/stores/forms'
-import { useSubmissionsStore } from '@/stores/submissions'
-import { useCustomFieldsStore } from '@/stores/customFields'
+import { ref, onMounted, computed } from "vue";
+import { useFormsStore } from "@/stores/forms";
+import { useSubmissionsStore } from "@/stores/submissions";
+import { useCustomFieldsStore } from "@/stores/customFields";
+import draggable from "vuedraggable";
+import api from "@/services/api";
 
-const formsStore = useFormsStore()
-const submissionsStore = useSubmissionsStore()
-const customFieldsStore = useCustomFieldsStore()
+const formsStore = useFormsStore();
+const submissionsStore = useSubmissionsStore();
+const customFieldsStore = useCustomFieldsStore();
 
-const loading = ref(false)
-const allSubmissions = ref([])
-const formsMap = ref(new Map())
+const loading = ref(false);
+const allSubmissions = ref([]);
+const formsMap = ref(new Map());
+const showExportMenu = ref(false);
 
-// Get all unique custom fields across all forms
-const allUniqueFields = computed(() => {
-  const fieldsMap = new Map()
-  
-  // Collect all fields from all forms
-  formsStore.forms.forEach(form => {
-    if (form.categories) {
-      form.categories.forEach(category => {
-        if (category.custom_fields) {
-          category.custom_fields.forEach(field => {
-            if (!fieldsMap.has(field.id)) {
-              fieldsMap.set(field.id, field)
-            }
-          })
-        }
-      })
+
+const filterFormId = ref("");
+const filterDateFrom = ref("");
+const filterDateTo = ref("");
+
+
+const filteredSubmissions = computed({
+  get() {
+    let filtered = [...allSubmissions.value];
+
+    if (filterFormId.value) {
+      filtered = filtered.filter((s) => s.form_id == filterFormId.value);
     }
-  })
-  
-  return Array.from(fieldsMap.values())
-})
 
-const uniqueFormNames = computed(() => {
-  const names = new Set(allSubmissions.value.map(s => s.formName))
-  return Array.from(names)
-})
+    if (filterDateFrom.value) {
+      const fromDate = new Date(filterDateFrom.value);
+      filtered = filtered.filter((s) => new Date(s.created_at) >= fromDate);
+    }
+
+    if (filterDateTo.value) {
+      const toDate = new Date(filterDateTo.value);
+      toDate.setHours(23, 59, 59, 999); // End of day
+      filtered = filtered.filter((s) => new Date(s.created_at) <= toDate);
+    }
+
+    return filtered;
+  },
+  set(value) {
+    // This setter is for vuedraggable
+    allSubmissions.value = value;
+  },
+});
+
+
+const allUniqueFields = computed(() => {
+  const fieldsMap = new Map();
+
+  formsStore.forms.forEach((form) => {
+    if (form.categories) {
+      form.categories.forEach((category) => {
+        if (category.custom_fields) {
+          category.custom_fields.forEach((field) => {
+            if (!fieldsMap.has(field.id)) {
+              fieldsMap.set(field.id, field);
+            }
+          });
+        }
+      });
+    }
+  });
+
+  return Array.from(fieldsMap.values());
+});
 
 onMounted(async () => {
-  await loadAllData()
-})
+  await loadAllData();
+});
 
 async function loadAllData() {
-  loading.value = true
+  loading.value = true;
   try {
-    // Load all forms with their categories and fields
-    await formsStore.fetchForms()
-    await customFieldsStore.fetchCustomFields()
-    
-    // Create a map of form IDs to form names
-    formsStore.forms.forEach(form => {
-      formsMap.value.set(form.id, form.name)
-    })
-    
-    // Load submissions for all forms
+    await formsStore.fetchForms();
+    await customFieldsStore.fetchCustomFields();
+
+    formsStore.forms.forEach((form) => {
+      formsMap.value.set(form.id, form.name);
+    });
+
     const submissionPromises = formsStore.forms.map(async (form) => {
       try {
-        await submissionsStore.fetchSubmissions(form.id)
-        return submissionsStore.submissions.map(sub => ({
+        await submissionsStore.fetchSubmissions(form.id);
+        return submissionsStore.submissions.map((sub) => ({
           ...sub,
-          formName: form.name
-        }))
+          formName: form.name,
+        }));
       } catch (error) {
-        console.error(`Error loading submissions for form ${form.id}:`, error)
-        return []
+        console.error(`Error loading submissions for form ${form.id}:`, error);
+        return [];
       }
-    })
-    
-    const allSubmissionsArrays = await Promise.all(submissionPromises)
-    const flatSubmissions = allSubmissionsArrays.flat().sort((a, b) => 
-      new Date(b.created_at) - new Date(a.created_at)
-    )
-    
-    allSubmissions.value = flatSubmissions
-    
+    });
+
+    const allSubmissionsArrays = await Promise.all(submissionPromises);
+    const flatSubmissions = allSubmissionsArrays
+      .flat()
+      .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+
+    allSubmissions.value = flatSubmissions;
   } catch (error) {
-    console.error('Error loading data:', error)
+    console.error("Error loading data:", error);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 async function refreshData() {
-  await loadAllData()
-}
-
-async function deleteSubmission(id) {
-  if (!confirm('Are you sure you want to delete this submission?')) return
-  
-  try {
-    await submissionsStore.deleteSubmission(id)
-    await loadAllData()
-  } catch (error) {
-    alert('Error deleting submission: ' + error.message)
-  }
+  await loadAllData();
 }
 
 function getFieldValue(submission, fieldId) {
-  if (!submission || !submission.field_values) return null
-  
-  const values = submission.field_values
-  
-  // Try direct access (number key)
-  if (values[fieldId] !== undefined && values[fieldId] !== null) return values[fieldId]
-  
-  // Try string key access
-  if (values[String(fieldId)] !== undefined && values[String(fieldId)] !== null) return values[String(fieldId)]
-  
-  return null
-}
-
-function formatDate(dateString) {
-  if (!dateString) return '-'
-  const date = new Date(dateString)
-  return date.toLocaleDateString()
+  if (!submission.field_values) return null;
+  return submission.field_values[fieldId] !== undefined
+    ? submission.field_values[fieldId]
+    : null;
 }
 
 function formatDateTime(dateString) {
-  if (!dateString) return '-'
-  const date = new Date(dateString)
-  return date.toLocaleString()
+  const date = new Date(dateString);
+  return date.toLocaleString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatDate(dateString) {
+  if (!dateString) return "-";
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+async function deleteSubmission(id) {
+  if (!confirm("Are you sure you want to delete this submission?")) return;
+
+  try {
+    await api.deleteSubmission(id);
+    allSubmissions.value = allSubmissions.value.filter((s) => s.id !== id);
+  } catch (error) {
+    console.error("Error deleting submission:", error);
+    alert("Failed to delete submission");
+  }
+}
+
+function applyFilters() {
+  // Filters are automatically applied via computed property
+}
+
+function clearFilters() {
+  filterFormId.value = "";
+  filterDateFrom.value = "";
+  filterDateTo.value = "";
+}
+
+async function onDragEnd() {
+  // Update display_order for all submissions
+  const updates = filteredSubmissions.value.map((submission, index) => ({
+    id: submission.id,
+    order: index,
+  }));
+
+  try {
+    await api.reorderSubmissions(updates);
+
+  } catch (error) {
+    console.error("Error reordering submissions:", error);
+    alert("Failed to save new order");
+    await loadAllData(); // Reload to revert
+  }
+}
+
+async function exportSubmissions(format) {
+  showExportMenu.value = false;
+
+  try {
+    const params = new URLSearchParams({ format });
+    if (filterFormId.value) {
+      params.append("form_id", filterFormId.value);
+    }
+
+    const response = await api.exportSubmissions(params.toString());
+
+    // Create download link
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
+    link.href = url;
+
+    const extension = format === "excel" ? "xlsx" : format;
+    link.setAttribute(
+      "download",
+      `submissions_${new Date().toISOString().split("T")[0]}.${extension}`,
+    );
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("Error exporting submissions:", error);
+    alert("Failed to export submissions");
+  }
+}
+
+async function exportSinglePdf(id) {
+  try {
+    const response = await api.exportSubmissionPdf(id);
+
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `submission_${id}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("Error exporting PDF:", error);
+    alert("Failed to export PDF");
+  }
 }
 </script>
 
 <style scoped>
 .submissions-page {
-  padding: 2rem 0;
+  padding: 30px;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: 20px;
 }
 
-.page-header h2 {
-  font-size: 2rem;
-  color: #2d3748;
-  margin: 0;
+.header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 
-.btn {
-  padding: 0.75rem 1.5rem;
-  border: none;
+.export-dropdown {
+  position: relative;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 5px;
+  background: white;
+  border: 1px solid #ddd;
   border-radius: 8px;
-  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  min-width: 180px;
+  z-index: 1000;
+}
+
+.dropdown-item {
+  width: 100%;
+  padding: 10px 15px;
+  text-align: left;
+  border: none;
+  background: none;
   cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 0.875rem;
-  text-decoration: none;
-  display: inline-block;
+  transition: background-color 0.2s;
 }
 
-.btn-secondary {
-  background: #4a5568;
+.dropdown-item:hover {
+  background-color: #f3f4f6;
+}
+
+.dropdown-item:first-child {
+  border-radius: 8px 8px 0 0;
+}
+
+.dropdown-item:last-child {
+  border-radius: 0 0 8px 8px;
+}
+
+.filter-panel {
+  background: #f9fafb;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.filter-row {
+  display: flex;
+  gap: 15px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.filter-item label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.filter-select,
+.filter-input {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  min-width: 180px;
+}
+
+.filter-select:focus,
+.filter-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.btn-secondary-small {
+  padding: 8px 16px;
+  background-color: #6b7280;
   color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
 }
 
-.btn-secondary:hover {
-  background: #2d3748;
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-}
-
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+.btn-secondary-small:hover {
+  background-color: #4b5563;
 }
 
 .loading {
   text-align: center;
-  padding: 3rem;
-  font-size: 1.125rem;
-  color: #4a5568;
+  padding: 40px;
+  color: #6b7280;
 }
 
 .empty-state {
   text-align: center;
-  padding: 4rem 2rem;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.empty-state p {
-  font-size: 1.125rem;
-  color: #718096;
-  margin-bottom: 1.5rem;
+  padding: 60px 20px;
+  color: #6b7280;
 }
 
 .table-wrapper {
   background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   overflow: hidden;
 }
 
@@ -284,117 +553,145 @@ function formatDateTime(dateString) {
 .submissions-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.9rem;
 }
 
 .submissions-table thead {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  background-color: #f3f4f6;
 }
 
 .submissions-table th {
-  padding: 1rem;
+  padding: 12px 16px;
   text-align: left;
   font-weight: 600;
+  color: #374151;
+  border-bottom: 2px solid #e5e7eb;
   white-space: nowrap;
 }
 
-.field-type-hint {
-  display: block;
-  font-size: 0.7rem;
-  font-weight: 400;
-  opacity: 0.85;
-  margin-top: 0.25rem;
-}
-
-.submissions-table tbody tr {
-  border-bottom: 1px solid #e2e8f0;
-  transition: background 0.2s ease;
+.submissions-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .submissions-table tbody tr:hover {
-  background: #f7fafc;
+  background-color: #f9fafb;
 }
 
-.submissions-table td {
-  padding: 1rem;
-  color: #4a5568;
+.drag-column {
+  width: 40px;
+  text-align: center;
+}
+
+.drag-handle {
+  cursor: grab;
+  color: #9ca3af;
+  font-size: 18px;
+  user-select: none;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
 }
 
 .form-name-column {
-  min-width: 180px;
-  font-weight: 600;
-  color: #2d3748;
-  background: #f7fafc;
-  position: sticky;
-  left: 0;
-  z-index: 5;
-}
-
-.submissions-table tbody tr:hover .form-name-column {
-  background: #edf2f7;
+  min-width: 200px;
 }
 
 .field-column {
   min-width: 150px;
 }
 
+.field-type-hint {
+  display: block;
+  font-size: 11px;
+  color: #9ca3af;
+  font-weight: normal;
+}
+
 .field-value {
   max-width: 300px;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .empty-cell {
-  color: #cbd5e0;
-  font-style: italic;
+  color: #9ca3af;
 }
 
 .date-column {
-  min-width: 160px;
-  white-space: nowrap;
-  font-size: 0.85rem;
-  color: #718096;
+  min-width: 150px;
 }
 
 .actions-column {
-  width: 120px;
-  text-align: center;
+  min-width: 180px;
+  text-align: right;
+}
+
+.btn-export-small {
+  padding: 6px 12px;
+  background-color: #10b981;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  margin-right: 5px;
+}
+
+.btn-export-small:hover {
+  background-color: #059669;
 }
 
 .btn-delete-small {
-  background: #fc8181;
+  padding: 6px 12px;
+  background-color: #ef4444;
   color: white;
-  padding: 0.4rem 0.8rem;
   border: none;
   border-radius: 6px;
-  font-size: 0.8rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  font-size: 13px;
 }
 
 .btn-delete-small:hover {
-  background: #f56565;
+  background-color: #dc2626;
 }
 
 .table-footer {
-  padding: 1.5rem;
-  background: #f7fafc;
-  border-top: 2px solid #e2e8f0;
-  text-align: center;
+  padding: 16px;
+  background-color: #f9fafb;
+  border-top: 1px solid #e5e7eb;
 }
 
 .summary-text {
-  font-size: 1rem;
-  color: #4a5568;
   margin: 0;
+  color: #6b7280;
+  font-size: 14px;
 }
 
-.summary-text strong {
-  color: #667eea;
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #2563eb;
+}
+
+.btn-secondary {
+  background-color: #6b7280;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background-color: #4b5563;
 }
 </style>
