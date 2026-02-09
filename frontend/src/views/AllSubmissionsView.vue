@@ -36,15 +36,15 @@
                 <strong>{{ submission.formName }}</strong>
               </td>
               <td v-for="field in allUniqueFields" :key="field.id" class="field-value">
-                <span v-if="submission.field_values[field.id] !== undefined && submission.field_values[field.id] !== null">
+                <span v-if="getFieldValue(submission, field.id) !== null">
                   <span v-if="field.field_type === 'checkbox'">
-                    {{ submission.field_values[field.id] ? '✓ Yes' : '✗ No' }}
+                    {{ getFieldValue(submission, field.id) ? '✓ Yes' : '✗ No' }}
                   </span>
                   <span v-else-if="field.field_type === 'date'">
-                    {{ formatDate(submission.field_values[field.id]) }}
+                    {{ formatDate(getFieldValue(submission, field.id)) }}
                   </span>
                   <span v-else>
-                    {{ submission.field_values[field.id] }}
+                    {{ getFieldValue(submission, field.id) }}
                   </span>
                 </span>
                 <span v-else class="empty-cell">-</span>
@@ -145,9 +145,11 @@ async function loadAllData() {
     })
     
     const allSubmissionsArrays = await Promise.all(submissionPromises)
-    allSubmissions.value = allSubmissionsArrays.flat().sort((a, b) => 
+    const flatSubmissions = allSubmissionsArrays.flat().sort((a, b) => 
       new Date(b.created_at) - new Date(a.created_at)
     )
+    
+    allSubmissions.value = flatSubmissions
     
   } catch (error) {
     console.error('Error loading data:', error)
@@ -169,6 +171,20 @@ async function deleteSubmission(id) {
   } catch (error) {
     alert('Error deleting submission: ' + error.message)
   }
+}
+
+function getFieldValue(submission, fieldId) {
+  if (!submission || !submission.field_values) return null
+  
+  const values = submission.field_values
+  
+  // Try direct access (number key)
+  if (values[fieldId] !== undefined && values[fieldId] !== null) return values[fieldId]
+  
+  // Try string key access
+  if (values[String(fieldId)] !== undefined && values[String(fieldId)] !== null) return values[String(fieldId)]
+  
+  return null
 }
 
 function formatDate(dateString) {

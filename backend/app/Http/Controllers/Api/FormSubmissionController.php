@@ -27,10 +27,29 @@ class FormSubmissionController extends Controller
     public function store(StoreFormSubmissionRequest $request, $formId)
     {
         $form = Form::with('categories.customFields')->findOrFail($formId);
+
+        // Get field_values from request
+        $fieldValues = $request->input('field_values');
+
+        // Log what we received
+        \Log::info('📥 Received submission data:', [
+            'field_values' => $fieldValues,
+            'type' => gettype($fieldValues),
+            'is_array' => is_array($fieldValues),
+            'json' => json_encode($fieldValues)
+        ]);
+
         $submission = FormSubmission::create([
             'form_id' => $formId,
-            'field_values' => $request->validated()['field_values']
+            'field_values' => $fieldValues
         ]);
+
+        // Log what was stored
+        \Log::info('💾 Stored in database:', [
+            'submission_id' => $submission->id,
+            'field_values' => $submission->field_values
+        ]);
+
         return new FormSubmissionResource($submission->load('form'));
     }
 

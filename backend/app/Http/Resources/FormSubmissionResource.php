@@ -18,7 +18,7 @@ class FormSubmissionResource extends JsonResource
             'id' => $this->id,
             'form_id' => $this->form_id,
             'form' => new FormResource($this->whenLoaded('form')),
-            'field_values' => $this->field_values,
+            'field_values' => (object) $this->field_values, // Cast to object to preserve structure
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

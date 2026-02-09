@@ -76,9 +76,10 @@
 
           <div class="form-group">
             <label>Assign Custom Fields</label>
+            <p class="availability-hint">Only showing custom fields not assigned to other categories</p>
             <div class="fields-selector">
               <div 
-                v-for="field in customFieldsStore.customFields" 
+                v-for="field in availableCustomFields" 
                 :key="field.id"
                 class="field-checkbox"
               >
@@ -95,8 +96,8 @@
                 </label>
               </div>
               
-              <div v-if="customFieldsStore.customFields.length === 0" class="no-fields-message">
-                No custom fields available. Create some first!
+              <div v-if="availableCustomFields.length === 0" class="no-fields-message">
+                No available custom fields. Create some first!
               </div>
             </div>
           </div>
@@ -114,9 +115,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useCategoriesStore } from '@/stores/categories'
 import { useCustomFieldsStore } from '@/stores/customFields'
+import api from '@/services/api'
 
 const categoriesStore = useCategoriesStore()
 const customFieldsStore = useCustomFieldsStore()
@@ -128,11 +130,28 @@ const formData = ref({
   description: ''
 })
 const selectedFieldIds = ref([])
+const availableCustomFields = ref([])
 
 onMounted(() => {
   categoriesStore.fetchCategories()
-  customFieldsStore.fetchCustomFields()
 })
+
+watch(showCreateModal, async (isOpen) => {
+  if (isOpen) {
+    const excludeId = editingCategory.value ? editingCategory.value.id : null
+    await fetchAvailableCustomFields(excludeId)
+  }
+})
+
+async function fetchAvailableCustomFields(excludeCategoryId = null) {
+  try {
+    const response = await api.getAvailableCustomFields(excludeCategoryId)
+    availableCustomFields.value = response.data.data
+  } catch (error) {
+    console.error('Error fetching available custom fields:', error)
+    availableCustomFields.value = []
+  }
+}
 
 function editCategory(category) {
   editingCategory.value = category
@@ -141,6 +160,7 @@ function editCategory(category) {
     description: category.description || ''
   }
   selectedFieldIds.value = category.custom_fields?.map(f => f.id) || []
+  showCreateModal.value = true // Ensure modal opens to trigger watch
 }
 
 function closeModal() {
@@ -151,6 +171,7 @@ function closeModal() {
     description: ''
   }
   selectedFieldIds.value = []
+  availableCustomFields.value = []
 }
 
 async function saveCategory() {
@@ -473,5 +494,12 @@ async function deleteCategory(id) {
 
 .btn-cancel:hover {
   background: #cbd5e0;
+}
+
+.availability-hint {
+  font-size: 0.85rem;
+  color: #718096;
+  margin: 0.5rem 0 1rem 0;
+  font-style: italic;
 }
 </style>

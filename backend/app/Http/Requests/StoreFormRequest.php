@@ -39,7 +39,7 @@ class StoreFormRequest extends FormRequest
             }
 
             // Check if any categories are already assigned to other forms
-            $usedCategories = \DB::table('category_form')
+            $usedCategories = \DB::table('form_category')
                 ->whereIn('category_id', $categoryIds)
                 ->pluck('category_id')
                 ->unique();
