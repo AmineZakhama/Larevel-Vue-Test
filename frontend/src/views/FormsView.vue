@@ -13,42 +13,55 @@
       </div>
     </div>
 
-    <div v-if="formsStore.loading" class="loading">
-      Loading...
-    </div>
+    <div v-if="formsStore.loading" class="loading">Loading...</div>
 
     <div v-if="formsStore.error" class="error">
       {{ formsStore.error }}
     </div>
 
     <div v-if="!formsStore.loading" class="forms-grid">
-      <div 
-        v-for="form in formsStore.forms" 
-        :key="form.id" 
-        class="form-card"
-      >
+      <div v-for="form in formsStore.forms" :key="form.id" class="form-card">
         <div class="form-header">
           <h3>{{ form.name }}</h3>
           <span class="categories-count-badge">
             {{ form.categories?.length || 0 }} categories
           </span>
         </div>
-        
+
         <p v-if="form.description" class="form-description">
           {{ form.description }}
         </p>
 
-        <div v-if="form.categories && form.categories.length" class="categories-list">
-          <div v-for="category in form.categories" :key="category.id" class="category-item">
+        <div
+          v-if="form.categories && form.categories.length"
+          class="categories-list"
+        >
+          <div
+            v-for="category in form.categories"
+            :key="category.id"
+            class="category-item"
+          >
             <div class="category-item-header">
               <strong>{{ category.name }}</strong>
-              <span class="fields-badge">{{ category.custom_fields?.length || 0 }} fields</span>
+              <span class="fields-badge"
+                >{{ category.custom_fields?.length || 0 }} fields</span
+              >
             </div>
-            <div v-if="category.custom_fields && category.custom_fields.length" class="fields-preview">
-              <span v-for="field in category.custom_fields.slice(0, 3)" :key="field.id" class="field-tag">
+            <div
+              v-if="category.custom_fields && category.custom_fields.length"
+              class="fields-preview"
+            >
+              <span
+                v-for="field in category.custom_fields.slice(0, 3)"
+                :key="field.id"
+                class="field-tag"
+              >
                 {{ field.name }}
               </span>
-              <span v-if="category.custom_fields.length > 3" class="more-fields">
+              <span
+                v-if="category.custom_fields.length > 3"
+                class="more-fields"
+              >
                 +{{ category.custom_fields.length - 3 }} more
               </span>
             </div>
@@ -57,7 +70,9 @@
 
         <div class="form-actions">
           <button @click="editForm(form)" class="btn btn-edit">Edit</button>
-          <button @click="deleteForm(form.id)" class="btn btn-delete">Delete</button>
+          <button @click="deleteForm(form.id)" class="btn btn-delete">
+            Delete
+          </button>
         </div>
       </div>
 
@@ -66,25 +81,29 @@
       </div>
     </div>
 
-    <div v-if="showCreateModal || editingForm" class="modal-overlay" @click.self="closeModal">
+    <div
+      v-if="showCreateModal || editingForm"
+      class="modal-overlay"
+      @click.self="closeModal"
+    >
       <div class="modal">
-        <h3>{{ editingForm ? 'Edit' : 'Create' }} Form</h3>
-        
+        <h3>{{ editingForm ? "Edit" : "Create" }} Form</h3>
+
         <form @submit.prevent="saveForm">
           <div class="form-group">
             <label>Form Name *</label>
-            <input 
-              v-model="formData.name" 
-              type="text" 
-              placeholder="e.g., Customer Registration" 
+            <input
+              v-model="formData.name"
+              type="text"
+              placeholder="e.g., Customer Registration"
               required
             />
           </div>
 
           <div class="form-group">
             <label>Description</label>
-            <textarea 
-              v-model="formData.description" 
+            <textarea
+              v-model="formData.description"
               placeholder="Brief description of this form"
               rows="3"
             ></textarea>
@@ -92,23 +111,28 @@
 
           <div class="form-group">
             <label>Select Categories</label>
-            <p class="availability-hint">Only showing categories not used in other forms</p>
+            <p class="availability-hint">
+              Only showing categories not used in other forms
+            </p>
             <div class="categories-selector">
-              <div 
-                v-for="category in availableCategories" 
+              <div
+                v-for="category in availableCategories"
                 :key="category.id"
                 class="category-checkbox"
               >
                 <label>
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     :value="category.id"
                     v-model="selectedCategoryIds"
                   />
                   <span class="category-checkbox-label">
                     <div>
                       <strong>{{ category.name }}</strong>
-                      <p v-if="category.description" class="category-desc-small">
+                      <p
+                        v-if="category.description"
+                        class="category-desc-small"
+                      >
                         {{ category.description }}
                       </p>
                     </div>
@@ -118,8 +142,11 @@
                   </span>
                 </label>
               </div>
-              
-              <div v-if="availableCategories.length === 0" class="no-categories-message">
+
+              <div
+                v-if="availableCategories.length === 0"
+                class="no-categories-message"
+              >
                 <template v-if="categoriesStore.categories.length === 0">
                   No categories created yet. Create some first!
                 </template>
@@ -131,66 +158,83 @@
           </div>
 
           <!-- Dynamic Fields Section - Only show when creating new form with categories selected -->
-          <div v-if="!editingForm && selectedFields.length > 0" class="form-fields-section">
+          <div
+            v-if="!editingForm && selectedFields.length > 0"
+            class="form-fields-section"
+          >
             <h4>Fill in the form fields</h4>
-            <p class="fields-hint">Fill in the initial data for this form submission</p>
-            
-            <div v-for="category in selectedCategories" :key="category.id" class="fields-category-section">
+            <p class="fields-hint">
+              Fill in the initial data for this form submission
+            </p>
+
+            <div
+              v-for="category in selectedCategories"
+              :key="category.id"
+              class="fields-category-section"
+            >
               <h5 class="category-title">{{ category.name }}</h5>
-              
-              <div v-for="field in category.custom_fields" :key="field.id" class="dynamic-field-group">
+
+              <div
+                v-for="field in category.custom_fields"
+                :key="field.id"
+                class="dynamic-field-group"
+              >
                 <label>
                   {{ field.name }}
                   <span v-if="field.is_required" class="required-star">*</span>
                 </label>
-                
-                <input 
+
+                <input
                   v-if="field.field_type === 'text'"
                   v-model="fieldValues[field.id]"
                   type="text"
                   :required="field.is_required"
                   :placeholder="`Enter ${field.name.toLowerCase()}`"
                 />
-                
-                <textarea 
+
+                <textarea
                   v-else-if="field.field_type === 'textarea'"
                   v-model="fieldValues[field.id]"
                   :required="field.is_required"
                   :placeholder="`Enter ${field.name.toLowerCase()}`"
                   rows="3"
                 ></textarea>
-                
-                <input 
+
+                <input
                   v-else-if="field.field_type === 'number'"
                   v-model="fieldValues[field.id]"
                   type="number"
                   :required="field.is_required"
                   :placeholder="`Enter ${field.name.toLowerCase()}`"
                 />
-                
-                <input 
+
+                <input
                   v-else-if="field.field_type === 'date'"
                   v-model="fieldValues[field.id]"
                   type="date"
                   :required="field.is_required"
                 />
-                
-                <select 
+
+                <select
                   v-else-if="field.field_type === 'select'"
                   v-model="fieldValues[field.id]"
                   :required="field.is_required"
                 >
                   <option value="">Select an option...</option>
-                  <option v-for="option in field.options" :key="option" :value="option">
+                  <option
+                    v-for="option in field.options"
+                    :key="option"
+                    :value="option"
+                  >
                     {{ option }}
                   </option>
                 </select>
-                
-                <label v-else-if="field.field_type === 'checkbox'" class="checkbox-label">
-                  <input 
-                    type="checkbox"
-                    v-model="fieldValues[field.id]"
-                  />
+
+                <label
+                  v-else-if="field.field_type === 'checkbox'"
+                  class="checkbox-label"
+                >
+                  <input type="checkbox" v-model="fieldValues[field.id]" />
                   <span>Check this box</span>
                 </label>
               </div>
@@ -198,9 +242,11 @@
           </div>
 
           <div class="modal-actions">
-            <button type="button" @click="closeModal" class="btn btn-cancel">Cancel</button>
+            <button type="button" @click="closeModal" class="btn btn-cancel">
+              Cancel
+            </button>
             <button type="submit" class="btn btn-primary">
-              {{ editingForm ? 'Update' : 'Create & Submit' }}
+              {{ editingForm ? "Update" : "Create & Submit" }}
             </button>
           </div>
         </form>
@@ -210,113 +256,102 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import { useFormsStore } from '@/stores/forms'
-import { useCategoriesStore } from '@/stores/categories'
-import { useSubmissionsStore } from '@/stores/submissions'
-import api from '@/services/api'
+import { ref, onMounted, computed, watch } from "vue";
+import { useRouter } from "vue-router";
+import { useFormsStore } from "@/stores/forms";
+import { useCategoriesStore } from "@/stores/categories";
+import { useSubmissionsStore } from "@/stores/submissions";
+import api from "@/services/api";
 
-const router = useRouter()
-const formsStore = useFormsStore()
-const categoriesStore = useCategoriesStore()
-const submissionsStore = useSubmissionsStore()
+const router = useRouter();
+const formsStore = useFormsStore();
+const categoriesStore = useCategoriesStore();
+const submissionsStore = useSubmissionsStore();
 
-const showCreateModal = ref(false)
-const editingForm = ref(null)
+const showCreateModal = ref(false);
+const editingForm = ref(null);
 const formData = ref({
-  name: '',
-  description: ''
-})
-const selectedCategoryIds = ref([])
-const fieldValues = ref({})
-const availableCategories = ref([])
+  name: "",
+  description: "",
+});
+const selectedCategoryIds = ref([]);
+const fieldValues = ref({});
+const availableCategories = ref([]);
 
 const selectedCategories = computed(() => {
-  return availableCategories.value.filter(cat => 
-    selectedCategoryIds.value.includes(cat.id)
-  )
-})
+  return availableCategories.value.filter((cat) =>
+    selectedCategoryIds.value.includes(cat.id),
+  );
+});
 
 const selectedFields = computed(() => {
-  const fields = []
-  selectedCategories.value.forEach(category => {
+  const fields = [];
+  selectedCategories.value.forEach((category) => {
     if (category.custom_fields) {
-      fields.push(...category.custom_fields)
+      fields.push(...category.custom_fields);
     }
-  })
-  return fields
-})
+  });
+  return fields;
+});
 
-// Watch for modal opening to fetch available categories
+
 watch(showCreateModal, async (isOpen) => {
-  console.log('showCreateModal changed:', isOpen, 'editingForm:', editingForm.value)
   if (isOpen && !editingForm.value) {
-    console.log('Fetching available categories for new form...')
-    await fetchAvailableCategories()
+    await fetchAvailableCategories();
   }
-})
+});
 
 watch(editingForm, async (form) => {
-  console.log('editingForm changed:', form)
   if (form) {
-    console.log('Fetching available categories for edit, excluding form:', form.id)
-    await fetchAvailableCategories(form.id)
+    await fetchAvailableCategories(form.id);
   }
-})
+});
 
 onMounted(() => {
-  console.log('FormsView mounted')
-  formsStore.fetchForms()
-  categoriesStore.fetchCategories()
-})
+  formsStore.fetchForms();
+  categoriesStore.fetchCategories();
+});
 
 async function fetchAvailableCategories(excludeFormId = null) {
   try {
-    console.log('Calling API getAvailableCategories with:', excludeFormId)
-    const response = await api.getAvailableCategories(excludeFormId)
-    console.log('Full API Response:', response)
-    console.log('Response body:', response.data)
-    
+    const response = await api.getAvailableCategories(excludeFormId);
+
     // Check both standard Laravel Resource (data.data) and direct array (data)
-    let data = []
+    let data = [];
     if (response.data && Array.isArray(response.data.data)) {
-        data = response.data.data
-        console.log('Found categories in response.data.data')
+      data = response.data.data;
     } else if (Array.isArray(response.data)) {
-        data = response.data
-        console.log('Found categories in response.data')
+      data = response.data;
     } else {
-        console.warn('Unexpected API response format:', response.data)
+      console.warn("Unexpected API response format:", response.data);
     }
-    
-    availableCategories.value = data
-    console.log('Final availableCategories set to:', availableCategories.value)
+
+    availableCategories.value = data;
   } catch (error) {
-    console.error('Error fetching available categories:', error)
-    availableCategories.value = []
+    console.error("Error fetching available categories:", error);
+    availableCategories.value = [];
   }
 }
 
 function editForm(form) {
-  editingForm.value = form
+  editingForm.value = form;
   formData.value = {
     name: form.name,
-    description: form.description || ''
-  }
-  selectedCategoryIds.value = form.categories?.map(c => c.id) || []
+    description: form.description || "",
+  };
+  selectedCategoryIds.value = form.categories?.map((c) => c.id) || [];
 }
 
 function closeModal() {
-  showCreateModal.value = false
-  editingForm.value = null
+  showCreateModal.value = false;
+  editingForm.value = null;
   formData.value = {
-    name: '',
-    description: ''
-  }
-  selectedCategoryIds.value = []
-  fieldValues.value = {}
-  availableCategories.value = []
+    name: "",
+    description: "",
+  };
+  selectedCategoryIds.value = [];
+  fieldValues.value = {};
+  availableCategories.value = [];
 }
 
 async function saveForm() {
@@ -324,50 +359,48 @@ async function saveForm() {
     const data = {
       name: formData.value.name,
       description: formData.value.description,
-      category_ids: selectedCategoryIds.value
-    }
+      category_ids: selectedCategoryIds.value,
+    };
 
     if (editingForm.value) {
-      await formsStore.updateForm(editingForm.value.id, data)
+      await formsStore.updateForm(editingForm.value.id, data);
     } else {
-      const newForm = await formsStore.createForm(data)
+      const newForm = await formsStore.createForm(data);
       if (Object.keys(fieldValues.value).length > 0) {
         // Ensure field_values is an object with ID keys
-        const submissionValues = {}
+        const submissionValues = {};
         for (const [key, value] of Object.entries(fieldValues.value)) {
-          submissionValues[String(key)] = value
+          submissionValues[String(key)] = value;
         }
-        
-        console.log('📤 Sending submission with field_values:', submissionValues)
-        console.log('📤 Type check:', typeof submissionValues, Array.isArray(submissionValues))
-        console.log('📤 JSON stringified:', JSON.stringify({field_values: submissionValues}))
-        
+
         const submissionData = {
-          field_values: submissionValues
-        }
-        
+          field_values: submissionValues,
+        };
+
         try {
-          const result = await submissionsStore.createSubmission(newForm.id, submissionData)
-          console.log('✅ Submission created:', result)
+          const result = await submissionsStore.createSubmission(
+            newForm.id,
+            submissionData,
+          );
         } catch (error) {
-          console.error('Error creating submission:', error)
-          alert('Form created but submission failed: ' + error.message)
+          console.error("Error creating submission:", error);
+          alert("Form created but submission failed: " + error.message);
         }
       }
     }
-    closeModal()
+    closeModal();
   } catch (error) {
-    alert('Error saving form: ' + error.message)
+    alert("Error saving form: " + error.message);
   }
 }
 
 async function deleteForm(id) {
-  if (!confirm('Are you sure you want to delete this form?')) return
-  
+  if (!confirm("Are you sure you want to delete this form?")) return;
+
   try {
-    await formsStore.deleteForm(id)
+    await formsStore.deleteForm(id);
   } catch (error) {
-    alert('Error deleting form: ' + error.message)
+    alert("Error deleting form: " + error.message);
   }
 }
 </script>
@@ -388,7 +421,6 @@ async function deleteForm(id) {
   font-size: 2rem;
   color: #2d3748;
 }
-
 
 .header-actions {
   display: flex;
@@ -436,13 +468,15 @@ async function deleteForm(id) {
   background: white;
   border-radius: 12px;
   padding: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
 }
 
 .form-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
 }
 
 .form-header {
@@ -560,7 +594,8 @@ async function deleteForm(id) {
   font-size: 1.125rem;
 }
 
-.loading, .error {
+.loading,
+.error {
   text-align: center;
   padding: 2rem;
   font-size: 1.125rem;

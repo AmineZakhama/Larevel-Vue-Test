@@ -31,24 +31,14 @@ class FormSubmissionController extends Controller
         // Get field_values from request
         $fieldValues = $request->input('field_values');
 
-        // Log what we received
-        \Log::info('📥 Received submission data:', [
-            'field_values' => $fieldValues,
-            'type' => gettype($fieldValues),
-            'is_array' => is_array($fieldValues),
-            'json' => json_encode($fieldValues)
-        ]);
+
 
         $submission = FormSubmission::create([
             'form_id' => $formId,
             'field_values' => $fieldValues
         ]);
 
-        // Log what was stored
-        \Log::info('💾 Stored in database:', [
-            'submission_id' => $submission->id,
-            'field_values' => $submission->field_values
-        ]);
+
 
         return new FormSubmissionResource($submission->load('form'));
     }
@@ -78,5 +68,20 @@ class FormSubmissionController extends Controller
         $submission = FormSubmission::findOrFail($id);
         $submission->delete();
         return response()->json(['message' => 'Submission deleted successfully']);
+    }
+
+    /**
+     * Reorder submissions
+     */
+    public function reorder(Request $request)
+    {
+        $submissions = $request->input('submissions'); // [{id: 1, order: 0}, {id: 2, order: 1}]
+
+        foreach ($submissions as $item) {
+            FormSubmission::where('id', $item['id'])
+                ->update(['display_order' => $item['order']]);
+        }
+
+        return response()->json(['message' => 'Submissions reordered successfully']);
     }
 }

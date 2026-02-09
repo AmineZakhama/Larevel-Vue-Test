@@ -9,7 +9,7 @@ const apiClient = axios.create({
 })
 
 export default {
-  // Custom Fields
+
   getCustomFields() {
     return apiClient.get('/custom-fields')
   },
@@ -27,7 +27,7 @@ export default {
     return apiClient.delete(`/custom-fields/${id}`)
   },
 
-  // Categories
+
   getCategories() {
     return apiClient.get('/categories')
   },
@@ -45,7 +45,7 @@ export default {
     return apiClient.delete(`/categories/${id}`)
   },
 
-  // Forms
+
   getForms() {
     return apiClient.get('/forms')
   },
@@ -62,7 +62,7 @@ export default {
     return apiClient.delete(`/forms/${id}`)
   },
 
-  // Form Submissions
+
   getFormSubmissions(formId) {
     return apiClient.get(`/forms/${formId}/submissions`)
   },
@@ -74,5 +74,22 @@ export default {
   },
   deleteSubmission(id) {
     return apiClient.delete(`/submissions/${id}`)
+  },
+  
+
+  exportSubmissions(queryString) {
+    return apiClient.get(`/submissions/export?${queryString}`, {
+      responseType: 'blob'
+    })
+  },
+  exportSubmissionPdf(id) {
+    return apiClient.get(`/submissions/${id}/export-pdf`, {
+      responseType: 'blob'
+    })
+  },
+  
+
+  reorderSubmissions(submissions) {
+    return apiClient.post('/submissions/reorder', { submissions })
   }
 }
